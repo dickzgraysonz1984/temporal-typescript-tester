@@ -16,9 +16,6 @@ async function run() {
     workflowId: 'workflow-' + nanoid(),
   });
   console.log(`Started workflow ${handle.workflowId}`);
-
-  // optional: wait for client result
-  console.log(await handle.result()); // Hello, Temporal!
 }
 
 run().catch((err) => {
