@@ -1,19 +1,19 @@
-# Hello World
+# Temporal - Claude Code Demo
 
-This is the default project that is scaffolded out when you run `npx @temporalio/create@latest ./myfolder`.
+This repo demonstrates how a developer can use Claude Code in their daily development with Temporal. It walks through the `temporal-replay-guard` plugin: long-running Workflows are kept alive while Claude Code edits the workflow source, and a git hook blocks pushes whose edits would break replay against the in-flight histories.
 
-The [Hello World Tutorial](https://learn.temporal.io/getting_started/typescript/hello_world_in_typescript/) walks through the code in this sample.
+## Prerequisites
 
-### Development environment
+In order to run this demo you will need the following:
+1. [Node.js 22](https://nodejs.org/en/download) (via your package manager, [nvm](https://github.com/nvm-sh/nvm), or the official installer).
+1. [Temporal CLI](https://docs.temporal.io/cli#install) (`brew install temporal`, the install script, or a release binary).
+1. [Claude Code CLI](https://docs.claude.com/en/docs/claude-code/setup) (`npm install -g @anthropic-ai/claude-code` once Node.js is installed).
 
-You need three tools available on your `PATH`: Node.js 22, the Temporal CLI, and Claude Code. Pick whichever setup path matches your system.
-
-#### Option A: Nix + direnv (recommended)
+### Optionally: Nix + direnv (The real 10x Eng)
 
 This repo ships a `flake.nix` that provisions all three into a dev shell, plus an `.envrc` containing `use flake` so [direnv](https://direnv.net/) can load it automatically when you `cd` into the directory.
 
-Prerequisites:
-
+You will need the following:
 1. [Nix](https://nixos.org/download/) with [flakes enabled](https://nixos.wiki/wiki/Flakes#Enable_flakes_temporarily) (add `experimental-features = nix-command flakes` to `~/.config/nix/nix.conf`). NixOS users already have Nix installed.
 1. [direnv](https://direnv.net/docs/installation.html), with its [shell hook](https://direnv.net/docs/hook.html) installed in your `~/.bashrc` / `~/.zshrc`.
 1. [nix-direnv](https://github.com/nix-community/nix-direnv) (recommended) so `use flake` is cached in `.direnv/` and shell entry is fast.
@@ -28,32 +28,9 @@ After that, `cd`-ing into the project drops you into the dev shell automatically
 
 If you'd rather not use direnv, run `nix develop` manually to enter the same shell.
 
-#### Option B: Manual install (non-Nix)
-
-If you're not using Nix, install each tool yourself:
-
-1. [Node.js 22](https://nodejs.org/en/download) (via your package manager, [nvm](https://github.com/nvm-sh/nvm), or the official installer).
-1. [Temporal CLI](https://docs.temporal.io/cli#install) (`brew install temporal`, the install script, or a release binary).
-1. [Claude Code CLI](https://docs.claude.com/en/docs/claude-code/setup) (`npm install -g @anthropic-ai/claude-code` once Node.js is installed).
-
 Verify with `node --version`, `temporal --version`, and `claude --version` before moving on.
 
-### Running this sample
-
-1. `temporal server start-dev` to start [Temporal Server](https://github.com/temporalio/cli/#installation).
-1. `npm install` to install dependencies.
-1. `npm run start.watch` to start the Worker.
-1. In another shell, `npm run workflow` to run a single Workflow, or `npm run workflows -- <count>` to start multiple Workflows in parallel (e.g. `npm run workflows -- 5`). The `--` is required so npm forwards the count to the script.
-
-The Workflow should return:
-
-```bash
-Hello, Temporal!
-```
-
-### Running the demo
-
-This walks through the `temporal-replay-guard` plugin: long-running Workflows are kept alive while Claude Code edits the workflow source, and a git hook blocks commits whose edits would break replay against the in-flight histories.
+## Running the demo
 
 1. Clone the repo and install dependencies:
 
@@ -78,15 +55,22 @@ This walks through the `temporal-replay-guard` plugin: long-running Workflows ar
 1. In a third shell, start Claude Code with the replay-guard plugin loaded:
 
    ```bash
-   claude --plugin-dir ./temporal-replay-guard
+   IS_DEMO=1 claude --plugin-dir ./temporal-replay-guard
    ```
+
+   > **Why `IS_DEMO=1`?** It tells Claude Code to hide your email address and organization name from the UI. That's a nice trick for live demos, screenshares, and recorded sessions — you can show off the tool without redacting frames in post or accidentally leaking which org you work for.
+
+1. Confirm the plugin loaded before running the demo prompts:
+
+   - Run `/plugins` and check the **Installed** tab — you should see `temporal-replay-guard`.
+   - Run `/temporal-replay-guard:replay-check` to manually replay the cached histories and verify the test harness works end-to-end.
 
 1. At the Claude Code prompt, ask it to modify the Workflow:
 
-   > add `await sleep('1 min')` before the `greet()`
+   > update the example workflow in src/workflows.ts. add `await sleep('10 sec')` before the first `greet()`
 
 1. Once the edit is applied, send the follow-up prompt:
 
    > commit and push
 
-   The git hook installed by `temporal-replay-guard` runs a replay check against the in-flight histories from step 3 and blocks the commit if the change is incompatible.
+   The `PreToolUse` hook installed by `temporal-replay-guard` intercepts the `git push`, runs the replay test against the in-flight histories from the workflows shell, and blocks the push if the change would cause non-determinism errors. The bundled `fix-replay-issue` skill is then invoked automatically to propose a backward-compatible fix (typically `workflow.patched()`).
