@@ -4,25 +4,39 @@ This is the default project that is scaffolded out when you run `npx @temporalio
 
 The [Hello World Tutorial](https://learn.temporal.io/getting_started/typescript/hello_world_in_typescript/) walks through the code in this sample.
 
-### Development environment (Nix + direnv)
+### Development environment
 
-This repo ships a `flake.nix` that provisions Node.js 22, the Temporal CLI, and Claude Code into a dev shell, plus an `.envrc` containing `use flake` so [direnv](https://direnv.net/) can load it automatically when you `cd` into the directory.
+You need three tools available on your `PATH`: Node.js 22, the Temporal CLI, and Claude Code. Pick whichever setup path matches your system.
+
+#### Option A: Nix + direnv (recommended)
+
+This repo ships a `flake.nix` that provisions all three into a dev shell, plus an `.envrc` containing `use flake` so [direnv](https://direnv.net/) can load it automatically when you `cd` into the directory.
 
 Prerequisites:
 
-1. [Nix](https://nixos.org/download/) with [flakes enabled](https://nixos.wiki/wiki/Flakes#Enable_flakes_temporarily) (add `experimental-features = nix-command flakes` to `~/.config/nix/nix.conf`).
+1. [Nix](https://nixos.org/download/) with [flakes enabled](https://nixos.wiki/wiki/Flakes#Enable_flakes_temporarily) (add `experimental-features = nix-command flakes` to `~/.config/nix/nix.conf`). NixOS users already have Nix installed.
 1. [direnv](https://direnv.net/docs/installation.html), with its [shell hook](https://direnv.net/docs/hook.html) installed in your `~/.bashrc` / `~/.zshrc`.
 1. [nix-direnv](https://github.com/nix-community/nix-direnv) (recommended) so `use flake` is cached in `.direnv/` and shell entry is fast.
 
 First-time setup:
 
 ```bash
-direnv allow   # one-time approval of .envrc; pulls the flake and builds the dev shell
+direnv allow   # one-time approval of .envrc; pulls the flake and builds the dev shell — installs Node.js 22, Temporal CLI, and Claude Code
 ```
 
 After that, `cd`-ing into the project drops you into the dev shell automatically; `.direnv/` caches the build (and is git-ignored).
 
 If you'd rather not use direnv, run `nix develop` manually to enter the same shell.
+
+#### Option B: Manual install (non-Nix)
+
+If you're not using Nix, install each tool yourself:
+
+1. [Node.js 22](https://nodejs.org/en/download) (via your package manager, [nvm](https://github.com/nvm-sh/nvm), or the official installer).
+1. [Temporal CLI](https://docs.temporal.io/cli#install) (`brew install temporal`, the install script, or a release binary).
+1. [Claude Code CLI](https://docs.claude.com/en/docs/claude-code/setup) (`npm install -g @anthropic-ai/claude-code` once Node.js is installed).
+
+Verify with `node --version`, `temporal --version`, and `claude --version` before moving on.
 
 ### Running this sample
 
