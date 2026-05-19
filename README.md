@@ -36,3 +36,43 @@ The Workflow should return:
 ```bash
 Hello, Temporal!
 ```
+
+### Running the demo
+
+This walks through the `temporal-replay-guard` plugin: long-running Workflows are kept alive while Claude Code edits the workflow source, and a git hook blocks commits whose edits would break replay against the in-flight histories.
+
+1. Clone the repo and install dependencies:
+
+   ```bash
+   git clone https://github.com/dickzgraysonz1984/temporal-typescript-tester.git
+   cd temporal-typescript-tester
+   npm install
+   ```
+
+1. In one shell, start the local Temporal dev server:
+
+   ```bash
+   temporal server start-dev
+   ```
+
+1. In a second shell, launch 5 long-running Workflows wired up for the Claude demo:
+
+   ```bash
+   npm run workflows -- 5 claude
+   ```
+
+1. In a third shell, start Claude Code with the replay-guard plugin loaded:
+
+   ```bash
+   claude --plugin-dir ./temporal-replay-guard
+   ```
+
+1. At the Claude Code prompt, ask it to modify the Workflow:
+
+   > add `await sleep('1 min')` before the `greet()`
+
+1. Once the edit is applied, send the follow-up prompt:
+
+   > commit and push
+
+   The git hook installed by `temporal-replay-guard` runs a replay check against the in-flight histories from step 3 and blocks the commit if the change is incompatible.
