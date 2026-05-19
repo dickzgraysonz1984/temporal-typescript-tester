@@ -9,7 +9,7 @@ The [Hello World Tutorial](https://learn.temporal.io/getting_started/typescript/
 1. `temporal server start-dev` to start [Temporal Server](https://github.com/temporalio/cli/#installation).
 1. `npm install` to install dependencies.
 1. `npm run start.watch` to start the Worker.
-1. In another shell, `npm run workflow` to run the Workflow Client.
+1. In another shell, `npm run workflow` to run a single Workflow, or `npm run workflows -- <count>` to start multiple Workflows in parallel (e.g. `npm run workflows -- 5`). The `--` is required so npm forwards the count to the script.
 
 The Workflow should return:
 
