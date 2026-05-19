@@ -46,13 +46,19 @@ Verify with `node --version`, `temporal --version`, and `claude --version` befor
    temporal server start-dev
    ```
 
-1. In a second shell, launch 5 long-running Workflows wired up for the Claude demo:
+1. In a second shell, start a Temporal Worker:
 
    ```bash
-   npm run workflows -- 5 claude
+   npm run start.watch
    ```
 
-1. In a third shell, start Claude Code with the replay-guard plugin loaded:
+1. In a third shell, launch 5 long-running Workflows wired up for the Claude demo:
+
+   ```bash
+   npm run workflows -- 5
+   ```
+
+1. In a fourth shell, start Claude Code with the replay-guard plugin loaded:
 
    ```bash
    IS_DEMO=1 claude --plugin-dir ./temporal-replay-guard
@@ -74,3 +80,47 @@ Verify with `node --version`, `temporal --version`, and `claude --version` befor
    > commit and push
 
    The `PreToolUse` hook installed by `temporal-replay-guard` intercepts the `git push`, runs the replay test against the in-flight histories from the workflows shell, and blocks the push if the change would cause non-determinism errors. The bundled `fix-replay-issue` skill is then invoked automatically to propose a backward-compatible fix (typically `workflow.patched()`).
+
+## How to reset the demo
+
+Here is the original workflow code you can copy and paste in:
+
+```ts
+import { proxyActivities, sleep, patched } from '@temporalio/workflow';
+// Only import the activity types
+import type * as activities from './activities';
+
+const { greet } = proxyActivities<typeof activities>({
+  startToCloseTimeout: '1 minute',
+});
+
+/** A workflow that simply calls an activity */
+export async function example(name: string): Promise<string> {
+  await greet(name);
+  await sleep('2 min');
+  return await greet(name);
+}
+```
+
+Another handy tip: don't commit the changes. When Claude Code reaches the patched-fix commit step and asks for approval — something like:
+
+```sh
+git add src/workflows.ts && git commit -m "$(cat <<'EOF'
+Guard new leading sleep with workflow.patched()
+
+The previous commit added await sleep('10 sec') before the first greet(),
+which broke replay for in-flight workflows (Timer command where history
+expected ActivityTaskScheduled). Gate the sleep behind
+patched('add-leading-10s-sleep') so existing executions take the old path
+and only fresh workflows get the leading delay.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+> Commit patched fix
+>
+> Do you want to proceed?
+
+…you can exit out instead of approving. That way the changes never land on GitHub and you keep a clean demo repo.
