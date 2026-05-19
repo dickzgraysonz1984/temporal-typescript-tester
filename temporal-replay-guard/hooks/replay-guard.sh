@@ -47,9 +47,14 @@ log "fired: command=$(printf '%s' "$command" | head -c 200)"
 
 # The replay test script handles the empty-histories case by auto-
 # downloading from Temporal, so we don't pre-check histories/ here.
-if [[ ! -f scripts/replay-test.ts ]]; then
-  log "skip: scripts/replay-test.ts not found"
-  echo "temporal-replay-guard: scripts/replay-test.ts not found; skipping." >&2
+#
+# CLAUDE_PLUGIN_ROOT is set by Claude Code when running plugin hooks. The
+# in-tree fallback is here so the hook script is testable in this repo,
+# where the plugin sources live at ./temporal-replay-guard/.
+REPLAY_SCRIPT="${CLAUDE_PLUGIN_ROOT:-$repo_root/temporal-replay-guard}/replay-test.ts"
+if [[ ! -f "$REPLAY_SCRIPT" ]]; then
+  log "skip: $REPLAY_SCRIPT not found"
+  echo "temporal-replay-guard: $REPLAY_SCRIPT not found; skipping." >&2
   exit 0
 fi
 
@@ -77,9 +82,13 @@ if [[ -n "$upstream" ]]; then
   fi
 fi
 
-log "running: npm run test:replay (upstream=${upstream:-<none>})"
+log "running: ts-node $REPLAY_SCRIPT (upstream=${upstream:-<none>})"
 start_ts=$(date +%s)
-output=$(npm run --silent test:replay 2>&1)
+if [[ -x "$repo_root/node_modules/.bin/ts-node" ]]; then
+  output=$("$repo_root/node_modules/.bin/ts-node" "$REPLAY_SCRIPT" 2>&1)
+else
+  output=$(npx --no-install ts-node "$REPLAY_SCRIPT" 2>&1)
+fi
 status=$?
 duration=$(( $(date +%s) - start_ts ))
 
