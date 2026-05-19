@@ -10,5 +10,6 @@ const { greet } = proxyActivities<typeof activities>({
 export async function example(name: string): Promise<string> {
   await sleep('1 min');
   await greet(name);
+  await sleep('1 min');
   return await greet(name);
 }
