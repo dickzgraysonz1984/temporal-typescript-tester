@@ -8,7 +8,9 @@ const { greet } = proxyActivities<typeof activities>({
 
 /** A workflow that simply calls an activity */
 export async function example(name: string): Promise<string> {
-  await sleep('1 min');
+  if (patched('leading-sleep-1min-before-greet')) {
+    await sleep('1 min');
+  }
   await greet(name);
   await sleep('2 min');
   return await greet(name);
