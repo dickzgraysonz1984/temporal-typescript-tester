@@ -1,7 +1,7 @@
 {
   "name": "temporal-replay-guard",
-  "description": "Blocks `git push` in TypeScript Temporal projects when the commits being pushed would break in-flight workflow executions, and invokes a skill that fetches the latest Temporal versioning and testing docs to guide the fix.",
-  "version": "0.1.0",
+  "description": "Blocks `git push` in TypeScript Temporal projects when the commits being pushed would break in-flight workflow executions. Delegates diagnosis and fix proposals to an isolated subagent that fetches live Temporal versioning and testing docs.",
+  "version": "0.2.0",
   "author": {
     "name": "Anthony Wong"
   }

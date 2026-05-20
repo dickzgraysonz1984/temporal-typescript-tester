@@ -3,8 +3,10 @@
 #
 # Fires before every Bash tool call. The script inspects the command and
 # only acts on `git push ...` invocations whose commits touch workflow
-# code. On replay failure it blocks the push by exiting 2 with guidance
-# on stderr.
+# code. On replay failure it blocks the push by exiting 2 with the replay
+# output on stderr; that stderr is fed back to Claude as additional
+# context, which triggers the replay-fix-diagnostician subagent via its
+# description-based auto-invocation.
 #
 # Output contract:
 #   exit 0           -> allow tool call
@@ -45,12 +47,6 @@ cd "$repo_root"
 mkdir -p "$repo_root/.claude" 2>/dev/null && LOG_FILE="$repo_root/.claude/replay-guard.log"
 log "fired: command=$(printf '%s' "$command" | head -c 200)"
 
-# The replay test script handles the empty-histories case by auto-
-# downloading from Temporal, so we don't pre-check histories/ here.
-#
-# CLAUDE_PLUGIN_ROOT is set by Claude Code when running plugin hooks. The
-# in-tree fallback is here so the hook script is testable in this repo,
-# where the plugin sources live at ./temporal-replay-guard/.
 REPLAY_SCRIPT="${CLAUDE_PLUGIN_ROOT:-$repo_root/temporal-replay-guard}/replay-test.ts"
 if [[ ! -f "$REPLAY_SCRIPT" ]]; then
   log "skip: $REPLAY_SCRIPT not found"
@@ -99,25 +95,24 @@ fi
 log "FAIL: replay test failed in ${duration}s (exit=$status) — blocking push"
 
 # Failure: block the push. stderr on exit 2 is surfaced to Claude as
-# additionalContext for the PreToolUse decision.
+# additionalContext for the PreToolUse decision. We deliberately do NOT
+# name a skill or subagent here — we just report the failure cleanly.
+# The replay-fix-diagnostician subagent's description auto-matches on
+# "NonDeterminismError" / "replay test failed" and Claude will delegate
+# to it, keeping the heavy doc-fetch + classification work out of the
+# main conversation.
 {
-  echo "Temporal replay test FAILED. The commits being pushed would cause"
-  echo "non-determinism errors when in-flight workflow executions resume"
-  echo "against this code."
+  echo "Temporal replay test FAILED — push blocked."
+  echo ""
+  echo "The commits being pushed would cause a NonDeterminismError when"
+  echo "in-flight workflow executions resume against this code."
   echo ""
   echo "------- replay test output -------"
   echo "$output"
   echo "----------------------------------"
   echo ""
-  echo "Do not retry the push. Instead, invoke the fix-replay-issue skill"
-  echo "from the temporal-replay-guard plugin. The skill will:"
-  echo "  1. Diagnose which class of non-determinism the failure represents"
-  echo "  2. WebFetch the current testing.md and versioning.md from the"
-  echo "     temporalio/skill-temporal-developer repo for fix guidance"
-  echo "  3. Propose a backward-compatible fix (usually workflow.patched())"
-  echo ""
-  echo "After the fix is committed, re-run \`npm run test:replay\` locally"
-  echo "and then push again."
+  echo "Diagnose this replay test failure and propose a backward-compatible"
+  echo "fix. Do not retry the push until the fix passes \`npm run test:replay\`."
 } >&2
 
 exit 2
