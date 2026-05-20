@@ -26,6 +26,43 @@ Two URLs are worth ~10 minutes:
 
 Default to a new skill in `~/.claude/skills/`. CLAUDE.md stays clean and your team isn't on the hook to maintain another plugin. **Escalate to a plugin only when you need something a skill alone can't deliver** — a hook, a slash command, or distribution to a team.
 
+### Skill vs. subagent — pick the right primitive for the work
+
+Once you're inside a plugin, you have another decision: should this be a **skill** (knowledge that runs in the current conversation) or a **subagent** (a worker that runs in its own isolated context)? The wrong choice won't break the plugin, but it will either pollute your main context with intermediate noise or fragment knowledge that should stay together.
+
+```mermaid
+flowchart TD
+    Start([New capability needed]) --> Q1{Does it need to fire<br/>on a lifecycle event?<br/>e.g. PreToolUse, PostEdit}
+    Q1 -->|Yes| Hook[Hook<br/><i>may delegate to a<br/>skill or subagent</i>]
+    Q1 -->|No| Q2{Will the work generate<br/>a lot of intermediate context<br/>the user doesn't need?<br/><i>large doc fetches,<br/>scanning many files,<br/>long reasoning chains</i>}
+    Q2 -->|Yes| Subagent[Subagent<br/><i>runs in isolated context,<br/>returns structured result</i>]
+    Q2 -->|No| Q3{Does it need its own<br/>tool restrictions?<br/><i>e.g. read-only auditor,<br/>no write access</i>}
+    Q3 -->|Yes| Subagent
+    Q3 -->|No| Q4{Is it knowledge or a procedure<br/>Claude should follow<br/>in the current conversation?}
+    Q4 -->|Yes| Skill[Skill<br/><i>standing knowledge,<br/>auto-loads on description match</i>]
+    Q4 -->|No| Q5{Does the user<br/>invoke it explicitly<br/>by name?}
+    Q5 -->|Yes| Cmd[Slash command<br/><i>/command-name</i>]
+    Q5 -->|No| Skill
+
+    style Hook fill:#1f6f43,color:#fff,stroke:#0d3d24
+    style Subagent fill:#2d5fa8,color:#fff,stroke:#1a3a6b
+    style Skill fill:#7a3aa8,color:#fff,stroke:#4a1f6b
+    style Cmd fill:#a8633a,color:#fff,stroke:#6b3d1f
+```
+
+The axis that actually matters is **where the work runs**, not how many steps it has. A skill can be a multi-step procedure; a subagent can do one atomic thing. What separates them is context isolation. Multi-step work *tends* to become a subagent because intermediate steps generate noise — but that's a consequence, not the rule.
+
+A useful gut check: **"do I want Claude to do this in my workspace, or hand it off to a contractor who brings back a deliverable?"** If the scratch paper matters to you, it's a skill. If only the final report matters, it's a subagent.
+
+Concretely, in the temporal-replay-guard plugin from this guide:
+
+- The `git push` interception is a **hook** — it fires on a lifecycle event.
+- The replay-failure diagnostician is a **subagent** — it fetches two large Temporal docs and reads workflow source, and you only want the final diagnosis back, not the research.
+- The determinism rules ("no `Date.now()` in workflows, gate command-graph changes with `patched()`") are a **skill** — standing knowledge Claude follows while you're editing.
+- `/replay-check` is a **slash command** — explicit manual entry point.
+
+All four primitives, each doing the job it's best at.
+
 ## 4. Let Claude build it; you review
 
 I knew *what* I wanted, so my first prompt was short:
